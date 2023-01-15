@@ -17,10 +17,10 @@ env.action_space.seed(42)
 #Hyperparameters
 learning_rate = 0.0005
 gamma = 0.98
-lmbda = 0.95 # GAE에 쓰이는 계수
-eps_clip = 0.1 # Clipping 범위
-K_epoch = 100 # T_horizonal 만큼 쌓은 데이터를 몇번 반복할지 정함
-T_horizon = 100 # update 주기 100 steps 만큼 경험을 쌓고 그 위에 policy update
+lmbda = 0.95 # for GAE
+eps_clip = 0.1 # Clipping range
+K_epoch = 100 # stack data up to T_horizonal and decide the # of repetitions 
+T_horizon = 100 # update period. experience 100 steps -> policy update
 episodes = 10
 # s_space = np.zeros(500)
 
@@ -110,14 +110,14 @@ def main():
         s = env.reset() 
         s_space[s]= 1.
         done = False
-        while not done: # 마지막 스텝이 T_horizon 만큼 남지 않았을 경우를 위해 
-            for t in range(T_horizon): # T_horizon 스텝 만큼만 data를 모으고 경험을 쌓음
-                prob = model.pi(torch.from_numpy(s_space).float()) # 모델에 환경 값을 주어 확률 값을 받음
-                m = Categorical(prob) # 해 당 확률을 categorial 변수로 바꾸어 줌 
-                a = m.sample().item() # 샘플링을 통해 행동을 뱉음 
-                s_prime, r, done, info = env.step(a) # 행동을 환경에 주어 행동에 대한 다음 값들을 받음 
-                model.put_data((s, a, r, s_prime, prob[a].item(), done)) # 이전 값들을 모델에 저장해 둠 
-                # prob[a].item()는 실제 내가 한 행동의 확률 값 -> PPO에서 ratio라는 값을 계산할 때 old_policy의 확률값이 쓰임
+        while not done: # This is for when the last step has data less then the T_horizon size 
+            for t in range(T_horizon): # collect the data up to T_horizon step size 
+                prob = model.pi(torch.from_numpy(s_space).float()) # get the probability from the env 
+                m = Categorical(prob) # change probability into categorial variables 
+                a = m.sample().item() # get actions from the sampling  
+                s_prime, r, done, info = env.step(a) # throw the current action to the env and get the next step values  
+                model.put_data((s, a, r, s_prime, prob[a].item(), done)) # store the old values into the model  
+                # prob[a].item() is the probability for actual action -> PPO uses old_policy prob when it calcaulates ratio value
                 
                 s = s_prime
                 s_space *= 0.0
@@ -125,7 +125,7 @@ def main():
                 score += r
                 if done:
                     break
-            model.train_net() # T_horizon 스텝만큼 경험을 쌓은 뒤에 학습함
+            model.train_net() # train starts after T_horizon step size experience
         if n_epi!=0:
             print("# of episode :{}, score : {:.1f}".format(n_epi, score))
             score = 0.0
