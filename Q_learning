@@ -1,0 +1,58 @@
+# Q-learning
+
+from gym.envs.toy_text.taxi import TaxiEnv
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import gym
+import random
+import os
+
+
+def q_run(env, q_table: np.array, number_of_episodes:int = 10, number_of_steps: int = 50) -> bool:
+    for episode in range(number_of_episodes):
+        rewards = 0
+        state = env.reset()
+        done = False       
+        
+        for _ in range(number_of_steps):
+            action = np.argmax(q_table[state,:])
+            new_state, reward, done, info = env.step(action)
+            rewards += reward
+            # env.render()
+            state = new_state
+            
+            if done == True:
+                break
+        
+        print(f"score: {rewards}")
+    env.close()
+    return True
+
+
+
+def train(env, number_of_episodes:int = 1000, number_of_steps: int = 99, learning_rate: float = 0.1, discount_rate: float = 0.6, epsilon: float = 0.3) -> np.array:
+    qtable = np.zeros([env.observation_space.n, env.action_space.n])
+    # training
+    for episode in range(number_of_episodes):
+        state = env.reset()
+        done = False
+    
+        for _ in range(number_of_steps):
+    
+            if random.uniform(0,1) < epsilon: # explore
+                action = env.action_space.sample()
+            else:
+                action = np.argmax(qtable[state,:]) # exploit
+    
+            next_state, reward, done, info = env.step(action)   
+            # Q-learning algorithm
+            old_value = qtable[state, action]
+            next_max = np.max(qtable[next_state])                
+            new_value = (1 - learning_rate) * old_value + learning_rate * (reward + discount_rate * next_max)
+            qtable[state, action] = new_value
+            state = next_state # Update new state
+    
+            if done == True: # if done=True, finish episode
+                break
+    return qtable
